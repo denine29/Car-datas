@@ -1,0 +1,9 @@
+{
+  "name": "vehicle-price-research-scripts",
+  "private": true,
+  "type": "commonjs",
+  "description": "XLSX generator for vehicle-price-research (8 columns + year-basis sheet)",
+  "dependencies": {
+    "exceljs": "^4.4.0"
+  }
+}

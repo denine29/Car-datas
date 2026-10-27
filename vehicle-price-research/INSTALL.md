@@ -19,11 +19,13 @@ cp -r vehicle-price-research ~/.claude/skills/
 
 数据源**只用官网**（官网页面 / 官方 API / 官方 PDF 价目表），第三方来源必须标注且优先不用。
 
-## 输出格式（8 列，只出 XLSX）
+## 输出格式（8 列 + 年款依据副表，只出 XLSX）
 
 ```
 品牌 | 官网车型名称 | 官网型号名称 | 年款 | 官网MSRP | 是否停销 | 数据日期 | 燃油分类
 ```
+
+工作簿固定 **2 个 sheet**：`官网价`（上表 8 列）+ `年款依据`（品牌 / 车型 / 年款 / 覆盖型号数 / 判定过程 / 逐字原文 / 来源位置）。年款依据的覆盖型号数合计必须 = 主表行数。
 
 | 列 | 规则 |
 |---|---|
@@ -48,12 +50,13 @@ vehicle-price-research/
 ├── INSTALL.md                   本文件
 ├── examples/                    ★ 7 份真实成品 XLSX + README（先看这个对样式）
 ├── references/
-│   ├── sites.md                 站点坑位详表（2000 行）+ 文首「站点速查索引」（按市场分组）
+│   ├── sites.md                 站点坑位详表（2200+ 行）+ 文首「站点速查索引」（按市场分组）
 │   └── workflow.md              给不支持 skill 的 agent 用的可复制提示词模板
 └── scripts/
     ├── triage.py                站点可达性分诊（30 秒判断封锁级别）
     ├── fetch_pdf.py             Akamai 拦 PDF 的破封脚本（浏览器内 fetch + base64）
-    └── format_output.py         统一格式化 8 列 XLSX
+    ├── write_xlsx.js            ★ 唯一生成器：8 列 + 年款依据副表（需 `npm i exceljs`）
+    └── format_output.py         旧版生成器（单 sheet / 仅欧元），已被 write_xlsx.js 取代
 ```
 
 ## examples/ 里有什么
@@ -81,7 +84,7 @@ vehicle-price-research/
 
 ## 已覆盖市场
 
-西班牙 ES · 比利时 BE · 丹麦 DK · 智利 CL · 泰国 TH · 美国 US · 印度 IN · 韩国 KR ·
-英国 UK · 新西兰 NZ · 菲律宾 PH · 全球站
+西班牙 ES · 比利时 BE · 丹麦 DK · 智利 CL · 希腊 GR · 泰国 TH · 美国 US · 印度 IN · 韩国 KR ·
+英国 UK · 德国 DE · 法国 FR · 新西兰 NZ · 菲律宾 PH · 全球站
 
 共 50+ 个品牌站点，其中 ✅ 可采 30+ 个。
