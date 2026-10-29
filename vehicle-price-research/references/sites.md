@@ -16,7 +16,7 @@
 | DS / Citroën / Peugeot / Opel / Fiat / Jeep | ✅ | `store.<brand>.es/graphql` → `getProductOffer`；取 `catalogAmount`，**不取** `totalAmount`；`engineGearbox` 传 slug |
 | Abarth | ⚠️ | Stellantis Omnichannel SPA，DOM/坐标/URL 全进不去；只能从 `api.omnichannel.stla-aws.net/.../ncs/retrieve` 拿车系级 `cataloguePrice` |
 | Audi | ⚠️ | `audi.es` 等全域 Akamai 403（curl/Playwright/外部节点全被拦）→ 改走 `datos.autopista.es/coches/audi/<车系>/`，口径与官方发布稿一致 |
-| Aston Martin | ❌ | 官方从不公布售价，配置器全链路无价格字段 |
+| Aston Martin | ⚠️ 无价格出表 | 官方从不公布售价，配置器全链路无价格字段 → 仍出表，MSRP 填 `官网无价格` |
 
 ### 比利时 BE
 
@@ -27,6 +27,9 @@
 | Volvo | ✅ | Akamai 拦 headless → 必须 `xvfb` + `headless=False` |
 | Citroën | ✅ | 主站 curl 全 403，但**页面内 `fetch()` 不受限** → `sccf` 静态价格库 JSON |
 | KGM / KG Mobility | ✅ | Vercel 托管全开放，`__NEXT_DATA__` 直读 `configurations[].listPrice.priceInclVat` |
+| Mitsubishi | ✅ | `www-graphql.prod.mipulse.co` APQ（GET + sha256 哈希）；`getSummary` 的 `summary.model.description` HTML 里取 `Aanbevolen catalogusprijs`，**不取** `model.price.value`（促销价） |
+| MG | ✅ | Craft CMS + Alpine；配置器内嵌 `field_commercePrivatePaymentOptions[0].field_paymentOption_basePrice`（= Aanbevolen catalogusprijs）；IM5/IM6/Cyberster 走新版 `editions[].prices.cash` |
+| Maxus | ✅ | Next.js `__NEXT_DATA__` → `configurationInfo.configurations[]`；取 `listPrice.priceInclVat`（UI 标签 = "Catalogusprijs"），**不取** `totalPrice` |
 | Hyundai | ⚠️ | 主站通，但 PAPI `org-eu-www.hyundai.com` 被 **SNI 级封锁**（TCP 通、TLS 立即 RST）→ 只到 `Vanaf` 起价 |
 | SEAT | ❌ | 全站按 IP 封锁，`robots.txt` 都 403；curl/浏览器/换 UA/IPv6 全无效 |
 
@@ -110,6 +113,13 @@
 | 品牌 | 结论 | 数据源 / 一句话方法 |
 |---|---|---|
 | DS Automobiles | ✅ | 主站 Akamai 封，`configv3` API 直取全版本 PVC |
+| Abarth | ⚠️ 需浏览器 | Akamai 封 curl（含 PDF）；OmniChannel 配置器 3 车系 / 6 版本，价 `cataloguePrice`，官方价目 PDF 逐版本全称与交叉校验 |
+| Alfa Romeo | ✅ | Stellantis Omnichannel 配置器（`/omni/konfigurator`）**无 sccf、`ncs/retrieve` 不可重放** → 只能**逐卡读 UI 的「UPE des Herstellers ab Werk ab」**；15 张 `commercialModelCode` 卡 = 在售全量 |
+| Audi | ✅ | `www.audi.de` Akamai 封 curl，但**价格主机 `omnigraph.audi.com` 不封** → `CarlineStructure` 持久化查询可 curl 直取；61 车系全量在车型总览页的 `serialized-onegraph-store` 里，配置器 172 个动力组合 |
+| Aiways | ❌ 无数据 | `ai-ways.eu/de` 全站 **0 个「€」**；购买/目录入口全跳 `aiways-switzerland.ch`，唯一价目 PDF 是 **CHF**（瑞士进口商）→ 德国无官方 MSRP，不出表 |
+| ALPINA | ❌ 无数据 | `alpina.de` / `alpina-configurator.de` 均 301 → `bmwalpina.com`；德国 IP 再 302 → `bmw.de/de/bmw-alpina.html`，只有「Vision BMW ALPINA」愿景页，无车型/价格 |
+| Aston Martin | ⚠️ 无价格出表 | `/de/models` 24 个在售版本、配置器与价目全链路 0 个「€」，免责声明写明价格由经销商确定 → 按规则 MSRP 填 `官网无价格` 出表（24 行） |
+| Elaris | ❌ 无数据 | 2025-01 已破产；`elaris.de` Cloudflare 403 / 源站 522；用户给的 `elaris.eu` 是 **Wayback 回放**（快照 2025-03-14），配置器与预约页价格互相矛盾 |
 | Alpine | ✅ | Renault rplug 配置器直取 SRP，curl 全通 |
 | Dacia | ✅ | 车型页 `APP_STATE` 内嵌全版本矩阵 + rplug PVC 双源 |
 | INEOS | ✅ | Next.js 站 + 独立配置器主机，官方价目 PDF 一页可文本解析 |
@@ -442,7 +452,7 @@ Citroën;AMI;Ami Rip Curl Sunset;官网无年款;9.299,99;否;20260930
 | **年款** | Autopista 尾部标 `(2026)` 是**其数据标注，非官网 MY** → 按规则写「官网无年款」 |
 | **已知缺口** | A1、Q2 仅有 2020–2024 年份记录（Audi 2026 年已停产，由 A2 e-tron 接替），停销状态须另行核实 |
 
-### Aston Martin（重要：无法采集 MSRP）
+### Aston Martin（官方不公布 MSRP → 按 `官网无价格` 规则出表）
 
 | 项 | 内容 |
 |---|---|
@@ -451,7 +461,7 @@ Citroën;AMI;Ami Rip Curl Sunset;官网无年款;9.299,99;否;20260930
 | **证据** | 三个接口全量 JSON 中 `price`/`amount`/`currency`/`total` 字段**一个都没有**；配置器 UI 从选车到 "Review & Proceed" 全程不显示任何金额 |
 | **官方口径** | 配置器免责声明原文：*"This configurator is not an offer to sell... Any purchase is subject to the terms and conditions of sale (**including price**) issued by the particular dealer."* |
 | **经销商站陷阱** | `astonmartinmadrid.com` 等经销商站的价格标 **"Vehicles in stock"**，含 `Vendido`(已售)/`Reservado`(已订)/里程/年份 → **库存车单车标价，不是 MSRP，严禁采集** |
-| **可比参照** | 同属"官方不公布售价"阵营，处理方式同法拉利：交付说明中标注无法采集 |
+| **可比参照** | 同属"官方不公布售价"阵营；自 2026-10-28 起按规则**仍出表**，MSRP 列填 `官网无价格`（DE 已交付 24 行），不再以"无法采集"为由跳过 |
 | **技术备注** | 市场清单 `GET /data/api/country-list` 返回 59 个市场（含 ES/GB/US 等）；`/models/products/ES` 可正常返回，证明 ES 市场有效，但同样无价 |
 
 ---
@@ -2025,6 +2035,27 @@ T.Custom   : ... 57195 46,050 55,260 50,989.83 60,492.80 351.61 703.22 → 60,49
 
 **未纳入**：Mustang GTD（无价目表、官网无价）；Ford 商用车线（Transit / Ranger 等，属 `/vans-and-pickups`）。
 
+### Alfa Romeo DE（德国 `www.alfaromeo.de`：**Stellantis Omnichannel 配置器，无 sccf、`ncs/retrieve` 不可重放 → UI 逐卡读「UPE des Herstellers ab Werk」**）✅
+
+- **★ 可达性**：Akamai 对 `curl` 全域 **403**（任意路径、任意 UA）；Qoder 真实浏览器正常打开。关键技巧：**页面内同源 `fetch()` 不受 Akamai 拦截** —— `/sitemap.xml`、`/modelle/*`、JS bundle（6 MB）全部用同源 fetch 拿到，省掉逐个 navigate。这与 Citroën BE、Jeep DE 的经验一致：Stellantis 系「curl 死、浏览器活、fetch 通」。
+- **❌ 无 sccf 静态价格库**：Citroën BE 那套 `sccf`/静态价格 JSON 在本品牌/市场**不存在**，别按老路去猜 URL。
+- **❌ `POST /service-contract/v1/ncs/retrieve` 是死路（401 陷阱）**：空 body `{}` → **200 但过滤器为空、零数据**；任何带内容的 body（`{"filters":{}}`、brand/market 组合等 5 种变体）→ **401 Unauthorized**。ES/Abarth 段记的「从 `ncs/retrieve` 拿车系级 `cataloguePrice`」在这里**重放不出来**：请求体形状不在 car-selector bundle 里（`indexOf('ncs/retrieve')` 在该 6.08 MB bundle 内 0 命中）。→ 批量目录路线放弃。
+- **★ 唯一可采来源 = 配置器 UI**：`https://www.alfaromeo.de/omni/konfigurator#/`（`x-origin-omni: car-selector`，brandCode 83 = Alfa Romeo，marketCode 3110 = DE）。首页渲染 **15 张「车系 × 年款」卡 = 官网认定的在售全量**，每张固定文案：
+  `<名称> MY2x | Verfügbar als: Hybrid|Elektro|Diesel|Benzin|Plug-in Hybrid Q4 | N Motoren | M Versionen | UPE des Herstellers ab Werk ab X €`
+  页脚口径原文：`*UVP des Herstellers inkl. MwSt, zzgl. Überführungskosten.`（含 19% VAT、不含交付费；`UPE` = 官网用词，即出厂建议零售价）。
+- **★ 卡片深链（入表来源 URL 用这个）**：`#/customize?commercialModelCode=<code>&vehicleType=VP&userType=B2C`。15 个 code：`6261` `6271`（Junior Ibrida/Elettrica **MY26**）、`6262` `6262Q4` `6272`（Junior MY27）、`6223H`（Tonale Ibrida **MY26**）`6224` `6224H` `6384`（Tonale MY27 Diesel/Ibrida/PHEV）、`6206Q` `6207`（Giulia MY27/Quadrifoglio）、`6306`（Giulia Quadrifoglio **MY25**）、`6207Q` `6306Q` `6307` `6307Q`（Stelvio / Stelvio Quadrifoglio）。
+- **★ DOM 契约（v3 才稳定）**：卡片 = `.targetSelector`；官方版本名 = `h3[type=bodyLBold]`；价格 = 同卡片内 `span[type=heading7]`（第一个数字即起价），位置在 `<p>UPE des Herstellers ab Werk ab </p>` 之后的 `div.sc-ezWOiH`。**分组定位用「文本以 `Ausstattungsvariante (N)` / `Motorisierung (N)` 开头的最大 div 中取最小那个」**（`N` 直接给出应有条数，是天然的校验锚点）。⚠ 侧边栏显示的 `UPE des Herstellers ab Werk X *` 是**当前已选配置的价（含选装）**，不是起价，别拿它入表。
+- **★ 停销判据（唯一依据，不推断）**：进旧年款卡片后顶部横幅原文 `Modelljahr 26 (MY26) ist nicht mehr neu Bestellbar. Es stehen nur noch Lagerfahrzeuge zur Verfügung.`（MY25 同句式）→ 该卡所有行 `是否停销=是`；正则 `/Modelljahr [0-9]{2} \(MY[0-9]{2}\) ist nicht mehr[^.]{0,80}/`。⚠ 扫 `body.innerText` 头部会误命中「SkiptoContentText…」导航跳转链接文本，必须用这条正则而不是取前 N 字符。同一句话也在 backoffice 的 `CommercialBarRepository` `modelMessages` 里（6306Q/6206Q/6306/6206 = MY25、6261/6261Q4… = MY26），可作二次印证。
+- **★ 后台 API 只当「年款/停订」佐证，不当价格源**：`POST /backoffice/v1/crud`（`{"configCode":"PriceConfigRepository",…,"operationType":"search"}`）→ DE/83/VP 下 **B2C 的 `cataloguePriceType` = `withTaxDeductionsAndFees`**，B2B/B2E 是 `withoutVAT` 等其它口径 → **口径不同，绝不能混用**。`POST /pricing/v1/vehicle` 能按 `priceType` 拆出 `cataloguePrice` / `eStorePriceUncond` / `eStorePrice`（后者是 eStore 促销价，纪律 6 不采）。重放鉴权：`localStorage.OATK`（accessToken）+ `localStorage.OMNI_DEFAULT_HEADERS`。
+- **★ 交叉校验**：5 个服务端直出的营销页（`/modelle/*`，同源 fetch 拿 HTML）与配置器逐卡起价**逐项一致**；营销页无 MY 标签，所以年款/停销仍以配置器卡片与横幅为准。
+- **⚠ 未纳入**：① `**/modelle/sonderserie/intensa**` 特别版系列——营销页给了 6 个公开 UPE（36.500 / 45.500 / 51.300 / 62.100 / 66.500 / 71.100），但**配置器无入口、无 MY 标注**，不属在售目录 → 不入表，值已记在依据页以便回溯。注意 URL 要从 `/sitemap.xml` 里取（`/modelle/intensa`、`/modelle/junior-luna-rossa`、`/modelle/quadrifoglio-oro` 全是 404，真实路径是 `/modelle/sonderserie/…`）；Intensa 页标题正则拿不到，要按 `cvModelRange__cardTitle` 切原始 HTML。② `/angebote/*` 租赁/分期页（促销）。③ B2B/B2E 价。
+- **★ 双向集合校验（纪律 8 的落地）**：每张卡声明的 `M Versionen` == 表内该卡行数；卡片 `ab` 价 == 该卡组内最低价；`N Motoren` 与去重后的动力数吻合。15 卡 → **40 行**，无上一代年款与当年款并排的重复行。MY26 的 Junior/Tonale 与 MY25 的 Giulia Quadrifoglio/Stelvio 虽属旧年款，但**官网 UI 仍呈现为可订余留/库存目录卡片**，按 UI 入表并标 `是否停销=是`。
+- **命名口径**：`官网车型名称` = 卡片名（含官网自带的 Q4 / Elettrica / Ibrida / Ibrida Plug-In / Diesel / Quadrifoglio 后缀）；`官网型号名称` = `<Version> <官网 Motorisierung 原文>`（例 `Ti Ibrida 1.2l 107kW (145PS) Systemleistung eDCT6`），不自拼规格。
+- **★ 燃油分类（按页面证据）**：官方「48V-Hybrid」/「Kombinierte Leistung von Verbrennungsmotor … und Elektromotor …」→ **MHEV**；`Elektro`/`Elettrica` → BEV；`Plug-In Hybrid Q4` → PHEV；柴油机官网从不写 48V → Diesel；Quadrifoglio 卡片 `Verfügbar als: Benzin` → Gasoline。
+- **⚠ 浏览器自动化两个硬坑**（Stellantis SPA 通用，下次直接按此写）：① `evaluate_script` **15,000 ms 硬超时**，且**超时后 promise 仍在页面里继续跑**（zombie job 会继续点卡片，把下一次采集的起点带偏）→ 一律改成 **fire-and-forget**：脚本立刻返回，循环结果写 `window.__D2={done,log,cards,errors}`，另起多次调用轮询，轮询内部 `while(Date.now()-t0<13000)` 留足余量。② `navigate_page` 会 reload 并**清空注入的 `window.*` 状态**；SPA 内部 `#/…` 切换不刷新但会换页 → 定位卡片前必须加 hub 守卫（页脚文本 + ≥15 个 `MY2` 标题）再 `querySelector`，否则在 customize 页找 h3 会 `Cannot read properties of undefined (reading 'closest')`。逐 trim 点击后要**稳定轮询**（连续 3 次动力列表 JSON 相同才取值，每次 sleep 700 ms）。
+- **⚠ 本机出表**：Excel COM 写完后 `FreezePanes` 看起来没生效（只读重开时 `Panes=0`、`SplitRow` 空）——那是**读取方式骗人**：必须 `$ws.Activate()` 后读 `$excel.ActiveWindow.FreezePanes/.SplitRow` 才是真值；每个 sheet 各自 `FreezePanes=$false; SplitRow=1; FreezePanes=$true` 重设一遍再存。
+- **交付结果（20261027）**：`AlfaRomeo_DE_官网价_20261027.xlsx`，**40 条 / 4 个车系**（Junior 15 · Tonale 15 · Giulia 5 · Stelvio 5），32.900–109.700 €；年款逐字 `MY25`/`MY26`/`MY27`；`是否停销=是` 共 10 条（全部有官网横幅原文支撑）。燃油：MHEV 15 · BEV 7 · Diesel 11 · PHEV 4 · Gasoline 3。附第二个工作表「口径与依据」20 行（15 张卡的逐字原文 + 覆盖型号数 + 判定过程 + `commercialModelCode` 来源 URL，加 5 行口径/未纳入说明）。
+
 ### Alpine DE（德国 `www.alpinecars.de`：**Renault rplug 配置器直取 SRP，curl 全通**）✅
 
 - **★ 配置器 base（按车系，勿猜）**：A110=`BAEL5`（`/product/model/AL1/a110/c/A`）· A290=`BAERh`（`/product/model/A5E/a290/c/A`）· A390=`BAEQx`（`/product/model/Z1D/alpine-a390/c/A`）。base 从各配置器页的 `modelURI` 提取。
@@ -2079,6 +2110,45 @@ T.Custom   : ... 57195 46,050 55,260 50,989.83 60,492.80 351.61 703.22 → 60,49
   - `85th ANNIVERSARY` 全系（Benziner 30.400 / e-Hybrid 32.400 / Elektro 42.300）**不在 MY27 PDF 里**，只在配置器。
 - **★ 在售范围**：仅 Avenger / Compass / Wrangler 三车系；Renegade、Grand Cherokee、Gladiator 已无页面，Wrangler 只售 Benziner（无 4xe）。
 - **交付结果（20261026）**：`Jeep_DE_官网价_20261026.xlsx`，**44 条 / 3 个车型**（Compass 13 · Avenger 29（MY2026 14 + MY2027 15）· Wrangler 2），26.300–72.900 €。燃油：MHEV 17 · BEV 15 · Gasoline 9 · PHEV 3。
+
+### Abarth DE（德国 `www.abarth.de`：**Akamai 封 curl，浏览器配置器 + 官方价目 PDF 双源**）⚠️ 需浏览器
+
+- **★ 封锁**：主站与 PDF 对 curl 一律 **403 Akamai**（`errors.edgesuite.net`，367 字节）；浏览器打开正常。
+- **★ 在售范围**：`https://www.abarth.de/omni/konfigurator/#/`（Stellantis OmniChannel SPA）hub 只有 **3 个车系 / 6 个版本**：`500e HB`（2）· `500e Cabrio`（2）· `600e`（2）。更早的 124 Spider / 500C / 595 / 695 在「Ehemalige Sondermodelle」页明确 `laufen nicht mehr vom Band`，无价、不入表。
+- **★ 价格**：hub 卡片与 customize 页版本卡都直接写 `UPE des Herstellers ab Werk ab`（含 19% MwSt，不含 Überführung）。价格 API `POST https://api.omnichannel.stla-aws.net/pricing/v1/vehicle`（Bearer + `brandCode:66` + `marketCode:3110`），body 关键字段 `version:"365.A2A.2.000"`、`trim:<内饰码>`、`priceType:"eStorePrice"`；响应 `price.vehicle.prices[]` 里取 **`priceType:"cataloguePrice"` 的 `withVAT`**（本例 41.989,99，含税应为 35.285,71×1.19；界面显示 41.990）。`totalPromo` / `ECOBONUS` 一律不用。
+- **★ 官方价目 PDF**（`www.abarth.de/preislisten`，选车型后出直链；curl 403，用「浏览器 fetch → POST 到本机 Node 接收器」落盘）：
+  - 500e：`/content/dam/abarth/de/pricelist/2026/2025017853_AB_LB_Preisblatt_500e-WEB.pdf`（3.1 MB，6 页）
+  - 600e：`/content/dam/abarth/de/pricelist/2025/600e/july-26/2026038658_AB_LB_Preisblatt_600e_MY2026_WEB.pdf`（830 KB，6 页）
+  - 文本层正常，Node `pdfjs-dist` 可解析（`node pdftext.js`）；价格行是 `Preis* 41.990 €`，版本名在紧邻上一行。
+- **★ 官方版本全称（PDF）**：`ABARTH 500e` / `ABARTH 500e TURISMO`（LIMOUSINE 列）· `ABARTH 500e CABRIO` / `ABARTH 500e TURISMO CABRIO` · `ABARTH 600e TURISMO` / `ABARTH 600e COMPETIZIONE`。配置器版本卡只显示 `500e` / `Turismo`（相对车系），**写型号列要用 PDF 全称**，否则同名的 `Turismo` 在两车系里分不清。
+- **★ 年款**：只有 600e 的官方 PDF 文件名带 `MY2026` → `MY2026`；500e 的 PDF 文件名无 MY、正文只有 `STAND 01/2026`（价目表版本日期）→ `官网无年款`。**不要把 STAND 日期当年款**。
+- **★ 燃油**：全系 `Elektro` → **BEV**（500e 113,7 kW/155 PS；600e TURISMO 175 kW/240 PS、COMPETIZIONE 207 kW/280 PS）。
+- **交付结果（20261028）**：`Abarth_DE_官网价_20261028.xlsx`，**6 条 / 3 个车型**，37.990–45.990 €，全部 BEV。
+
+### Audi DE（德国 `www.audi.de/de`：**Akamai 只封 `www.audi.de`，价格主机 `omnigraph.audi.com` 可 curl 直取**）✅
+
+- **★ 可达性**：`curl https://www.audi.de/de/` → **403 Akamai**（浏览器正常）；但配置器价格走 **`https://omnigraph.audi.com/graphql`，不带 Akamai**，curl / Node 直连即可（本机 schannel 偶发 `CRYPT_E_NO_REVOCATION_CHECK`，用 `rejectUnauthorized:false` 或 curl `--ssl-no-revoke`）。
+- **★ 持久化查询（APQ）**：`operationName=CarlineStructure`，`sha256Hash=252862bdb52e8818f5847539b531167019155cb8e7006853a5aed948999d3d61`；variables `{"identifier":{"brand":"A","country":"de","language":"de","id":"<carlineId>"},"enableIncentives":false}`。必须带 `content-type: application/json` + `apollo-require-preflight: true`（否则 `CSRF_ERROR`）。
+- **★ 在售全量 = 61 个 carline**：不要猜 id（`a3`/`a5`/`q4` 不存在，`a3sb`/`a3limo`/`q4etron` 才存在）。权威清单在总览页 `https://www.audi.de/de/neuwagen/`：
+  - 静态 `<button data-testid="cargroupCard-<group>">` → 15 个车系组（a2etron/a3/a5/a6/a6etron/q3/q4/q5/q6/q7/q8/q9/etrongt/nuvolari/f1），各组「N Modelle」合计 **61**；
+  - 页面内 `<script type="x-feature-hub/serialized-onegraph-store">` 是 Apollo store 的 JSON，递归找 `__typename === "CarlineStructureCarline"` 即得 **61 个 `identifier.id` + name + `prices.minPrice` + 配置器 URL**（比逐组点卡片快得多）。
+- **★ 价格**：`data.carline.trimlines[].models[].prices.price.value`（含 19% MwSt，不含 Überführung）；`prices.priceWithFees` 同值。与官方价目 PDF 逐一吻合（Q7 87.900/90.500、A2 38.200/41.900/48.900/51.200、Q9 108.400）。
+- **★ 版本名**：用 **`engineName`**（= 配置器第 1 步「Modelle und Antriebe」卡片的原文，如 `quattro 470 kW tiptronic`、`e-tron quattro performance 250 kW`）；`name` 会漏功率（A2 e-tron 四个型号的 `name` 全是 `e-tron`，只有 `engineName` 带 `125/140/170/240 kW`）。`trimline` 非 `Grundmodell` 时 `engineName` 已自带前缀（`S line business e-tron performance 270 kW`），**不要重复拼**；但**多装备线车系里的基础行要补 `Grundmodell ` 前缀**（与 advanced / S line 行对齐，用户 20261028 确认）——只有 9 个车系有多条装备线（A3 Limousine / A3 Sportback / A3 Sportback e-hybrid / A6 Avant e-tron / A6 Sportback e-tron / Q6 SUV e-tron / Q6 Sportback e-tron / Q8 SUV / Q8 SUV e-hybrid），共 30 行；其余 46 个车系只有一条装备线，**不加**（避免每行都重复同一个词）。
+- **★ 出行粒度**：一行 = 一个配置器卡片 = trimline × 动力。A3 Sportback 18 行（3 条装备线 × 6 动力），全站 **172 行 / 55 个 carline**。
+- **★ 无价无配置器的 6 个 carline 不入表**（总览页有卡片但**无 `ab` 价、无「Konfigurieren」、Neuwagenbörse (0)**）：`S6 Limousine TDI`、`S6 Avant TDI`、`RS 6 Avant`、`RS 6 Avant performance`、`Audi Nuvolari`、`Audi R26`（R26 页面明写 `Dieses Fahrzeug steht nicht zum Verkauf.`）。CarlineStructure 对它们返回 `trimlines: []`。
+- **★ 年款**：页面和价目 PDF 正文都**不写 `Modelljahr`**；年款取 GraphQL `models[].modelId.year = 2027`（172 个型号全为 2027），旁证两条官方信号：站内生成的配置器链接 `?pr=8YYANC1_2027%7C…`、官方价目 PDF 归档目录 `/content/dam/country/de/de/neuwagen/preislisten/my-2027/preislisten/preisliste_<slug>.pdf` → **MY2027**。价目 PDF 在该目录下只有 `a2-e-tron` / `q7-suv` / `q9-suv` 三份可直连（其余 slug 404），可作为价格交叉校验源。
+- **★ 燃油**：取 `technicalDataV2.modelAttributes`——`driveTrain` ∈ `ICE` / `MHEV` / `PHEV` / `BEV`，`fuelType` ∈ `PETROL` / `DIESEL` / `ELECTRICAL`。即 `BEV→BEV`、`PHEV→PHEV`、`MHEV→MHEV`、`ICE+PETROL→Gasoline`、`ICE+DIESEL→Diesel`。Audi 官方价目 PDF 也写 `(mit MHEV plus-Technologie)`，与 `driveTrain:MHEV` 一致。
+- **★ 交叉校验（必做）**：每个 carline 的 `min(rows.price)` 必须等于总览页 `prices.minPrice`（即卡片「ab X EUR inkl. MwSt」）——61/61 全对。
+- **交付结果（20261028）**：`Audi_DE_官网价_20261028.xlsx`，**172 条 / 55 个车型**，31.850–160.500 €。燃油：MHEV 61 · BEV 40 · PHEV 28 · Gasoline 26 · Diesel 17。
+
+### Aiways DE（德国 `ai-ways.eu/de`：**营销站，德国境内不发售、无德国价**）❌ 无数据
+
+- **★ 站点性质**：WordPress + Elementor 营销壳（`wp-content`、`elementor` 大量出现），导航只有 `U5 / U6 / ÜBER UNS / Service`，**没有配置器、没有「Preise」页**。
+- **★ 无德国价（三点证据）**：
+  1. 整站 HTML（首页 + `/de/u5` + `/de/u6` + Service 页）里 **`€` 出现 0 次**、`CHF` 出现 0 次，也没有任何「ab X」价格块；
+  2. 所有购买/试驾/目录入口都指向瑞士进口商 **`aiways-switzerland.ch`**（`/de/catalog/`、`/fr/catalog/`、`/de/probefahrt/`、`/de/kontakt`）；
+  3. 站内 `/de/wp-json/wp/v2/media?search=preis` 能翻到的价目 PDF 全是 **瑞士版**：`2024-Aiways-U5-Preisliste_MY22-without-XCITE-VAT-CHANGE.pdf`（表头 `Preis inkl. MwSt in CHF`，U5 PRIME **45`490**，Version 01.12.2023）、`2024-Aiways-U6-Preisliste.pdf`（`Provisorischer Preis inkl. MwSt. in CHF`，U6 PRIME **48`990**），落款是 `Maxomotive Schweiz AG`。
+- **★ 结论**：德国官网不提供德国 MSRP，唯一可见价格是瑞士 CHF 且 U6 明标「临时价」→ **不生成表**（拿 CHF 当 DE 价、或把「Provisorischer Preis」当官方 MSRP 都属编造）。如后续要求「瑞市」再按 `aiways-switzerland.ch` 采。
 
 ### Lucid DE（德国 `lucidmotors.com/de-de`：**Next.js 服务端直出「Ab X €」，curl 可通**）✅
 
@@ -2189,6 +2259,77 @@ T.Custom   : ... 57195 46,050 55,260 50,989.83 60,492.80 351.61 703.22 → 60,49
 - **口径**：`Kaufpreis` 含增值税；**不含一次性 Überführungskosten 990 €（含税）**。
 - **交付结果（20261027）**：`smart_DE_官网价_20261027.xlsx`，**17 条 / 4 个车型**（#1 6 · #3 5 · #5 5 · #2 1），19.990–61.900 €。燃油：BEV 17。
 
+### ALPINA DE（德国 `www.alpina.de`：**品牌站已退役，跳 BMW 品牌愿景页，无车型/价格**）❌ 无数据
+
+- **★ 重定向链（2026-10-28 实测）**：`https://www.alpina.de/` → **301** `https://www.bmwalpina.com/index-en.html`；`bmwalpina.com` 再按出口 IP **302**：
+  - 德国 IP（`X-Forwarded-For: 85.214.132.117`）→ `https://www.bmw.de/bmw-alpina`（终页 `/de/bmw-alpina.html`）；
+  - 其他 IP → `https://alpina.bmw.com.cn/`（中文站，`X-Cache: HIT`）。
+  - 旧配置器域名 `www.alpina-configurator.de` 同样 301 到 bmw.de ALPINA 页，原配置器已下线。
+- **★ 德国终页内容**：`<title>BMW ALPINA | Exklusivste Performance Marke von BMW`；全文 **19 次「Vision BMW ALPINA」**，`B3 / B4 / B5 / XB7 / XD3 / XD4 / D3 S / D4 S` 出现 **0 次**；无车型卡、无「Preise」页、无价目 PDF（页面里唯一的 PDF 是回收网点表）。
+- **★ BMW.de 侧复核**：`/de/neufahrzeuge/bmw-alpina.html`、`/de/neufahrzeuge/alpina/b3.html`、`/de/modelle/bmw-alpina.html` 全 404；`bmw.de/sitemap.xml` 里 alpina 命中 0。
+- **结论**：ALPINA 已并入 BMW，官网不再提供在售车型与官方价；经销商仍有 2025 年生产的 B3/B4/XB7 新车上牌车，但那是**经销商价**，不是 MSRP → **不出表**。
+
+### Aston Martin DE（德国 `www.astonmartin.com/de`：**官网/配置器全链路不公布价格 → 按规则出表，MSRP 填 `官网无价格`**）⚠️ 无价格出表
+
+- **★ 可达性**：curl 与真浏览器均 200，无封锁；问题不在可达性，在**官方不给价**。
+- **★ 在售清单**：导航（`Modelle` 菜单）共 **24 个版本 / 10 个车系**，即交付表的全部行；`Past Models` 是历史归档入口，不计入在售。
+  - Vantage：Vantage S · Vantage · Vantage Roadster
+  - DB12：DB12 S · DB12 · DB12 Volante · DB12 Volante: 60th Anniversary Edition
+  - Vanquish：Vanquish · Vanquish Volante · Vanquish: 25th Anniversary Edition · Vanquish Volante: 60th Anniversary Edition
+  - DBX：DBX GT · DBX S · DBX707
+  - Valhalla：Valhalla Coupe · Valhalla Spider
+  - Valkyrie：Aston Martin Valkyrie Coupe · Spider · AMR Pro · LM
+  - 单车型：Valen · Valour · Valiant · AMR26 F1
+- **★ 价格证据**：23 个车型页遍历后 `€` 出现 **0 次**（浏览器 `innerText` 复核同样为 0），无「ab X €」、无 UVP、无价目 PDF。
+- **★ 配置器**：`configurator.astonmartin.com/DE/configuration/AM003A`（Angular SPA，`main-*.js`）只渲染车型/外观/内饰，**全程无金额**；免责声明逐字：*"This configurator is not an offer to sell ... Any purchase is subject to the terms and conditions of sale (**including price**) issued by the particular dealer."*
+- **★ 用户给的 `/en/dealers/`**：纯经销商定位页（约 112 KB），无库存车、无价格字段。
+- **★ 年款**：23 页均无 MY/Modelljahr；唯一四位年份是页脚版权 `Aston Martin 2026`（排除）。AMR26 的 2026 指 F1 新规赛季、Valkyrie LM 的 2025er/2027 指 WEC 赛车与体验计划、Vanquish 25th 的 "this 2025 …" 是叙述句 → 一律 `官网无年款`。
+- **★ 交付**：`AstonMartin_DE_官网价_20261028.xlsx`，主表 24 行（MSRP 全部 `官网无价格`），`年款依据` 10 组、覆盖 24 行、无 `[WARN]`。燃油：Valhalla = PHEV；Valkyrie Coupe/Spider、AMR26 F1 = HEV；其余 Gasoline。
+
+### Elaris DE（德国 `www.elaris.de` / 用户给的 `www.elaris.eu`：**品牌已破产，官网下线；elaris.eu 是 Wayback 回放且价格自相矛盾**）❌ 无数据
+
+- **★ 公司状态**：ELARIS AG 于 **2025-01-20** 向 Neustadt an der Weinstraße 法院提交破产申请（公司 ad hoc 公告）；行业媒体口径「Neue Fahrzeuge von Elaris gibt es seit Anfang 2025 nicht mehr」。
+- **★ 官网**：`elaris.de` 任意路径 → Cloudflare **403「Sorry, you have been blocked」**（真浏览器同样）；经公共代理访问返回 **522**（源站不可达）→ 官网已下线。
+- **★ 用户给的 `elaris.eu`**：可以 200，但 HTML 内含 Wayback **wombat** 注入脚本、字体/资源路径为 `/web/20250314213303im_/…` → 是 **2025-03-14 的 Wayback 回放**，不是实时站；且各页来自不同年份快照，阵容都对不上：
+  - 首页导航 5 款：BEO / JACO / LENN / DYO / CARO S；
+  - 首页链接 6 款：多 LEO、CARO，少 LENN；
+  - 配置器 6 个 `car_model_id`：BEO / JACO / LENN / DYO / CARO / CARO S（无 LEO）。
+- **★ 价格互相矛盾（三点）**：
+  1. 配置器 `Order[base_price]`：BEO 31.939 · JACO 36.494 · LENN 33.354,30 · DYO 17.764,70 · CARO 60.483,20 · CARO S 25.126,10；
+  2. 同站 `beo-reservieren` 页写 **「ELARIS BEO € 53.925,-」**，并注明该 UVP 已扣制造商创新补贴 **2.975 €**、另可申领 BAFA **5.000 €**；
+  3. 第三方 evspecs 记 BEO 72 kWh 德国含税价 **40.112 €**；2022 年媒体 UVP 为 **47.290–56.900 €**。
+  - 配置器还带隐藏字段 `Order[special_discount]=12900`，购买页未展示折前/折后对照 → **无法判定哪个是「不带折扣的官方 MSRP」**。
+- **★ 年款**：存档页无任何 MY 标记（只有 `©` 版权年与 2023–2025 的活动日期）→ 若将来采，只能写 `官网无年款`。
+- **结论**：无可靠、可复核的当前官方 MSRP → **不出表**。若用户明确要「历史存档价」，再按「只取配置器 `base_price` + 停销=是 + 副表注明快照 2025-03-14」单独确认口径。
+
+### Mitsubishi BE（比利时 `www.mitsubishi-motors.be/nl`：**mipulse GraphQL APQ，价格藏在配置器摘要 HTML 里**）✅
+
+- **★ 数据源**：`https://www-graphql.prod.mipulse.co/prod/graphql`，Apollo **persisted query**，GET 拼 `?operationName=<op>&variables=<enc>&extensions=<enc {"persistedQuery":{"version":1,"sha256Hash":"<hash>"}}>`。`getModelSelector` 给车系/车型清单，`getSummary` 给单车型摘要。完整 query 文档也内嵌在 `js_mmc.*.js` 里，可改 POST。
+- **★ variables 必须带 `url`**：`{market:"be",language:"nl",path:"/be/nl/aanschaf/configure/configurator",selection:{model,vehicle,year,url}}`。漏 `url` 会报 `Cannot read properties of undefined (reading 'replace'/'indexOf')`。
+- **★ 价格位置（关键）**：`getSummary → getSummarySelector.summary.model.description` 是 HTML 串，内含 `Aanbevolen catalogusprijs: € 30.790`、`Herfstvoordeel: - € 2.000`、`Vanafprijs exclusief metaalkleur: € 28.790`。**`model.price.value` 是促销价，别取。**
+- **★ 促销结构**：每车系一个固定 `herfstvoordeel`（ASX 2.000 / Grandis 2.500+2.000 / Eclipse Cross 4.000 / Outlander PHEV 6.000），逐 trim 校验「目录价 − 促销 = 页显价」全部吻合。
+- **★ 无价目表**：`/nl/campagne/prijslijst-*` 页面渲染为空，全站无 PDF；`/nl/brochuredownload` 只回链这些页 → 不要再找 PDF。
+- **★ 年款**：站内不印 MY；模型页路由 `/be/nl/modellen/asx/2025`、配置器 `year` 参数、`getModelSelector.models[].year` 三处一致，才据此写年份。
+
+### MG BE（比利时 `www.mgmotor.be/nl`：**Craft CMS + Alpine，配置器 HTML 内嵌产品 JSON**）✅
+
+- **★ 车型范围**：导航 16 项，其中 15 个有配置器；`MG GO! Concept` 无配置器、全站无价 → 概念车，不入表（交付说明列名）。
+- **★ 老版配置器**（hs / hs-hev / hs-phev / mg3 / mg3-hev / mg4 / mg4-urban / mgs5 / mgs6 / mgs9-phev / zs / zs-hev）：`<configurator-payment-options :editions="...">`，属性是 **HTML 转义 JSON**，标签属性换行 → 先定位标签再找 `:editions=`，切到下一个 `"` 再 `JSON.parse`。取 `field_commercePrivatePaymentOptions[0].field_paymentOption_basePrice`（`field_paymentOption_paymentName = "Aanbevolen catalogusprijs"`），`promotions[].field_priceImpactNonMetallic` 是折扣。
+- **★ 新版配置器**（IM5 / IM6 / CYBERSTER，仅 `/nl/model/<slug>/configurator`，`/nl/configurator/<slug>` 会回落到国家选择页）：`editions[].prices.cash` = 目录价，`promotions[].discount` = 折扣，`calculationDiscount` 为空串。
+- **★ 口径校验**：每车系「basePrice − Σpromotions」逐条等于车型页 `Vanaf € X`（促销价），12 个车系全中；IM5/IM6 再减 4.000 正好等于首页 Lanceringsaanbod。
+- **★ 坑**：`zs`（汽油 ZS）配置器条目 sku 写成 `zs-hev-comfort-1`、价格 25.285 与 ZS Hybrid+ Standard 同值，但促销 −5.286 后 = 页面 19.999，可确认是汽油 ZS Comfort 的真实目录价，不是串数据。
+- **★ 年款**：全站无 modeljaar/bouwjaar/MY；页面 2026 均为活动期（01/09–30/11）或版权年 → `官网无年款`。
+
+### Maxus BE（比利时 `www.maxusmotors.be/nl`：**Next.js `__NEXT_DATA__` 直读，价格字段最规整**）✅
+
+- **★ 数据源**：`/nl/modellen/<slug>` 与 `/nl/configurator/<slug>` 的 `<script id="__NEXT_DATA__">` → `props.pageProps.story.content.configurationInfo.configurations[]`；两处条数一致，配置器页也带全量。
+- **★ 取价**：`listPrice.priceInclVat`（UI 翻译键 `configurator.pricedetails.listprice` = **"Catalogusprijs"**），`discounts[].price` 是活动折扣；`referenceConfiguration.priceInfo.totalPrice` 是折后价，**不取**。
+- **★ 在售范围**：`/nl/configurator` 页首行 `7 Resultaten` = eDELIVER 5 / DELIVER 7 / DELIVER 9 / T60 MAX / eDELIVER 7 / eDELIVER 9 / eTERRON 9。`eDELIVER 3` 仍在导航与 `/nl/modellen/edeliver3`，但 `configurationInfo` 为 null、无价格、不在 7 个结果与价目清单里 → 视作停供，不入表（交付说明列名）。
+- **★ 含税**：页面同时给 `excl. BTW` / `incl. BTW`（×1,21），取 incl；URL 上的 `?priceexclvat=true` 只是切显示。
+- **★ 坑**：`DELIVER 9` 有一个 CMS 条目名 `Deliver9 Luxury 2024`，图片素材名 `deliver9-my24-*` —— 都不是 MY 标示，不能当成年款。
+- **★ 价目 PDF 不存在**：`/nl/prijslijsten` 只收表单邮件发送，别去找 PDF。
+- **★ 年款**：无 modeljaar/bouwjaar/MY；页面 2026 只有活动期 `Actie geldig van 01-10-2026 tot en met 31-10-2026.` → `官网无年款`。
+
 ### 其它市场速记（无独立详段）
 
 > 本表只放**没有单独段落**的站点。其余站点的坑位见下方同名详段，按市场的快速索引见文首「0. 站点速查」。
@@ -2203,7 +2344,7 @@ T.Custom   : ... 57195 46,050 55,260 50,989.83 60,492.80 351.61 703.22 → 60,49
 | Fiat/Jeep PH | JS 渲染 | 官方导航数据区 `STANDARD MODELS` |
 | BMW PH | 车型页无价，藏在 PDF | `BMW Price List` 按钮 → S3 上的价目 PDF（**沙箱封 `*.s3.amazonaws.com`**） |
 | 法拉利（全球） | 官方从不公布售价 | 仅经销商询价，**无法采集 MSRP** |
-| Aston Martin（全球含 ES） | 官方从不公布售价；配置器全链路无价格字段 | 仅经销商报价，**无法采集 MSRP**（详见下） |
+| Aston Martin（全球含 ES / DE） | 官方从不公布售价；配置器全链路无价格字段 | 仅经销商报价；**仍出表**，MSRP 填 `官网无价格`（DE 24 行已交付，详见下） |
 
 ---
 
