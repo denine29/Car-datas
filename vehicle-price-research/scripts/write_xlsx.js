@@ -54,6 +54,8 @@ function fuelClass(v) {
 }
 
 function fmtPrice(p, mode) {
+  // 官网有车型但无价格时，price 为文字（如「官网无价格」），原样输出
+  if (typeof p === 'string' && !/^\s*[\d.,]+\s*$/.test(p)) return p;
   const n = Number(String(p).replace(/[^\d.-]/g, ''));
   if (!Number.isFinite(n)) throw new Error('price 不是数字: ' + p);
   if (mode === 'euro') {
